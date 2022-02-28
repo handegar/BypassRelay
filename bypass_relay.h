@@ -46,9 +46,12 @@
 #define DEBOUNCE_TIME 15
 // Pause to let the PIC finish its IO changes
 #define PIC_CHANGE_TIME 10
+// Interval for LED blinking
+#define BLINK_INTERVAL 100
+
 
 // Shall we compile in logic for the option switch?
-#define USE_OPTIONSWITCH 1
+#define USE_OPTIONSWITCH 0
 
 // What kind of switch are we using for the option-switch?
 // NB: Set to 1 if USE_OPTIONSWITCH is 0 (no optionswitch used)
