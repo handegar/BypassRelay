@@ -4,11 +4,7 @@
  *    https://www.coda-effects.com/2017/02/relay-bypass-final-code.html
  *  - Has support for "hold" to change mode from latch to momentary (and back)
  *  - Blinks LED to indicate mode change. 
- */
-
-/*
- * TODO:
- *   - Store "Auto-on" preferences (hold footswitch on startup to toggle)
+ *  - Has persistent "On as default"-mode switching (hold at switch @ powerup)
  */
 
 
@@ -26,9 +22,9 @@ void init() {
     CMCON = 0x07; // comparator off 
     ADCON0 = 0; // ADC and DAC converters off
 
-    // Setup IO. 1=input, 0=output (? double check this)
+    // Setup IO. 1=input, 0=output 
     TRISIO0 = 0; // LED
-    TRISIO1 = 1; // Footswitch
+    TRISIO1 = 1; // Foot-switch
     TRISIO2 = 0; // TLP222G/A muter
     TRISIO3 = 1; // Extra button/switch (optional, not used at the moment)
     TRISIO4 = 0; // GND pin for the relay
@@ -82,6 +78,9 @@ void main(void) {
         
     if (FOOTSWITCH_IN == PRESSED) {
         on_at_startup = !on_at_startup;
+        // Writing to the same address each time. The EEPROM is supposed to 
+        // guarantee 100k writes. This is more than enough for a lifetime of 
+        // "on at startup" switching :-)
         eeprom_write(0, on_at_startup);
         __delay_ms(GRACE_TIME);   
     }
