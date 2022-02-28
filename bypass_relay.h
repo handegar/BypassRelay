@@ -33,6 +33,8 @@
 #define OPEN 1
 #define OFF 0
 #define ON 1
+#define FALSE 0
+#define TRUE 1
 
 // Wait time before action
 #define GRACE_TIME 300          

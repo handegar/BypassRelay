@@ -13,6 +13,8 @@
 
 
 #include <xc.h>
+#include <eeprom_routines.h>
+
 #include "bypass_relay.h"
 
 void init() {
@@ -71,10 +73,22 @@ void blink_LED(int times) {
 
 void main(void) {
     init();
+    
+    unsigned char on_at_startup = eeprom_read(0);
+    if (on_at_startup == TRUE) {
+        toggle_relay(ON);
+         __delay_ms(GRACE_TIME);   
+    }
+        
+    if (FOOTSWITCH_IN == PRESSED) {
+        on_at_startup = !on_at_startup;
+        eeprom_write(0, on_at_startup);
+        __delay_ms(GRACE_TIME);   
+    }
+     
     blink_LED(6); // Say hello!
-
+   
     do { 
-
 #if USE_OPTIONSWITCH
         // =================================================================
         // This part is optional and can be removed if no "optional switch" 
