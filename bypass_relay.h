@@ -55,7 +55,7 @@
 
 // What kind of switch are we using for the option-switch?
 // NB: Set to 1 if USE_OPTIONSWITCH is 0 (no optionswitch used)
-#define OPTIONSWITCH_IS_MOMENTARY 1 // Alternative is a SPST switch
+#define OPTIONSWITCH_IS_MOMENTARY (1 && USE_OPTIONSWITCH) // Alternative is a SPST switch
 
 
 #define LED_OUT GP0

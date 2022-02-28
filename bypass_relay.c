@@ -34,27 +34,31 @@ void init() {
     GPIO = 0; // all the GPIOs are in low state (0V) when starting    
 }
 
+
 void toggle_LED(uint8_t onoff) {
     LED_OUT = onoff == 1 ? ON : OFF;
 }
 
+
 void toggle_relay(uint8_t onoff) {
-    MUTE_OUT = ON; // photoFET on -> mute signal    
+    MUTE_OUT = ON; // mute signal       
     __delay_ms(MUTE_TIME);
     toggle_LED(onoff);
     RELAY_OUT = onoff == 1 ? ON : OFF; // (de)activate the relay                 
     // The other pin for the relay. Set to 0 to ensure it is GND
-    RELAY_GND = OFF;
+    RELAY_GND = OFF; 
     __delay_ms(MUTE_TIME);
-    MUTE_OUT = OFF; // photoFET off -> unmute    
+    MUTE_OUT = OFF; // unmute signal
+    // Give the PIC time to update it's IO (might not be needed, though...)
+    __delay_ms(PIC_CHANGE_TIME); 
 }
 
-// Blinks the LED a couple of times
 
-void indicate_mode_switch() {
+// Blinks the LED a couple of times
+void blink_LED(int times) {
     uint8_t state = 0;
     toggle_LED(0);
-    for (int i = 0; i < 6; ++i) { 
+    for (int i = 0; i < times; ++i) { 
         __delay_ms(BLINK_INTERVAL);
         state ^= 1;
         toggle_LED(state);        
@@ -64,11 +68,12 @@ void indicate_mode_switch() {
     }
 }
 
+
 void main(void) {
     init();
-    indicate_mode_switch(); // Say hello!
+    blink_LED(6); // Say hello!
 
-    while (1) { // For eveeeeerrrr....!
+    do { 
 
 #if USE_OPTIONSWITCH
         // =================================================================
@@ -83,7 +88,7 @@ void main(void) {
                 mode_change_counter = relay_mode == MOMENTARY ?
                         MODE_CHANGE_PERIODS * MODE_CHANGE_RETURN_FACTOR :
                         MODE_CHANGE_PERIODS;
-                indicate_mode_switch();
+                blink_LED(6);
             }
         }
 #else           
@@ -92,12 +97,12 @@ void main(void) {
             relay_mode = MOMENTARY;
             mode_change_counter =
                     MODE_CHANGE_PERIODS * MODE_CHANGE_RETURN_FACTOR;
-            indicate_mode_switch();
+            blink_LED(6);
         } else if (OPTIONSWITCH_IN == OPEN && relay_mode != LATCHING) {
             __delay_ms(GRACE_TIME);
             relay_mode = LATCHING;
             mode_change_counter = MODE_CHANGE_PERIODS;
-            indicate_mode_switch();
+            blink_LED(6);
         }
 #endif
         // =================================================================
@@ -106,13 +111,14 @@ void main(void) {
         if (FOOTSWITCH_IN == PRESSED) { // Switch pressed
             __delay_ms(DEBOUNCE_TIME); // debounce pause
 
-            if (relay_mode == LATCHING) { // Latching mode
+            // == Latching mode ===========================================
+            if (relay_mode == LATCHING) { 
                 if (FOOTSWITCH_IN == PRESSED) { // Switch STILL pressed?
                     __delay_ms(GRACE_TIME);
-                    if (FOOTSWITCH_IN == OPEN) { // User has lifted foot. Activate/deactivate.
+                    // User has lifted foot. Activate/deactivate.
+                    if (FOOTSWITCH_IN == OPEN) { 
                         relay_state ^= 1;                        
-                        toggle_relay(relay_state);                        
-                        __delay_ms(PIC_CHANGE_TIME);
+                        toggle_relay(relay_state);                                                
                     } else { // Is the user trying to change mode?
 #if OPTIONSWITCH_IS_MOMENTARY
                         mode_change_counter -= 1;
@@ -121,19 +127,18 @@ void main(void) {
                             mode_change_counter = MODE_CHANGE_PERIODS;
 
                             relay_state = OFF;                            
-                            toggle_relay(relay_state);                            
-                            __delay_ms(PIC_CHANGE_TIME);
-                            indicate_mode_switch();
+                            toggle_relay(relay_state);                                                        
+                            blink_LED(6);
                         }
 #endif
                     }
                 }
             }
-            else if (relay_mode == MOMENTARY) { // Momentary mode                
+            // == Momentary mode ============================================                
+            else if (relay_mode == MOMENTARY) { 
                 if (FOOTSWITCH_IN == PRESSED && relay_state != ON) {
                     relay_state = ON;                    
-                    toggle_relay(relay_state);                   
-                    __delay_ms(PIC_CHANGE_TIME);
+                    toggle_relay(relay_state);                                       
                 }
 
 #if OPTIONSWITCH_IS_MOMENTARY
@@ -144,9 +149,8 @@ void main(void) {
                         relay_mode = LATCHING;
                         mode_change_counter = MODE_CHANGE_PERIODS;
                         relay_state = OFF;                        
-                        toggle_relay(relay_state);                        
-                        __delay_ms(PIC_CHANGE_TIME);
-                        indicate_mode_switch();
+                        toggle_relay(relay_state);                                                
+                        blink_LED(6);
                     }
                 } else {
                     mode_change_counter =
@@ -163,12 +167,10 @@ void main(void) {
         if (relay_mode == MOMENTARY) { // Momentary mode            
             if (FOOTSWITCH_IN == OPEN && relay_state != OFF) {
                 relay_state = OFF;                
-                toggle_relay(relay_state);                
-                __delay_ms(PIC_CHANGE_TIME);
+                toggle_relay(relay_state);                                
             }
         }
 
-    } // WHILE(1)
-
-    return;
+    } while(1); // Keep trucking!
+    
 }
