@@ -51,14 +51,12 @@
 // Interval for LED blinking
 #define BLINK_INTERVAL 100
 
-
 // Shall we compile in logic for the option switch?
 #define USE_OPTIONSWITCH 0
 
 // What kind of switch are we using for the option-switch?
 // NB: Set to 1 if USE_OPTIONSWITCH is 0 (no optionswitch used)
 #define OPTIONSWITCH_IS_MOMENTARY (1 && USE_OPTIONSWITCH) // Alternative is a SPST switch
-
 
 #define LED_OUT GP0
 #define FOOTSWITCH_IN GP1
