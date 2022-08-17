@@ -71,10 +71,6 @@ void main(void) {
     init();
     
     unsigned char on_at_startup = eeprom_read(0);
-    if (on_at_startup == TRUE) {
-        toggle_relay(ON);
-         __delay_ms(GRACE_TIME);   
-    }
         
     if (FOOTSWITCH_IN == PRESSED) {
         on_at_startup = !on_at_startup;
@@ -87,6 +83,12 @@ void main(void) {
      
     blink_LED(6); // Say hello!
    
+    if (on_at_startup == TRUE) {
+        toggle_relay(ON);
+         __delay_ms(GRACE_TIME);   
+    }
+    
+    
     do { 
 #if USE_OPTIONSWITCH
         // =================================================================
