@@ -27,6 +27,17 @@
 #include <stdint.h>
 #include <xc.h>
 
+
+// =============================================================================
+//  User configs                                                              // 
+// =============================================================================
+
+// Shall we compile in logic for the option switch as mode-toggle?
+#define USE_OPTIONSWITCH 0
+
+// =============================================================================
+
+
 #define LATCHING 0
 #define MOMENTARY 1
 #define PRESSED 0
@@ -37,11 +48,9 @@
 #define TRUE 1
 
 // Wait time before action
-#define GRACE_TIME 300          
-// How many GRACE_TIMEs to wait before changing mode
-#define MODE_CHANGE_PERIODS 8   
-// How much longer must we hold to get back from momentary?
-#define MODE_CHANGE_RETURN_FACTOR 10 
+#define GRACE_TIME 150          
+// How many loops to wait before changing mode
+#define MODE_CHANGE_PERIODS 50   
 // Time to mute to avoid "click" when toggling relay
 #define MUTE_TIME 20
 // Pause-time to filter out switch-bounce noise
@@ -51,19 +60,12 @@
 // Interval for LED blinking
 #define BLINK_INTERVAL 100
 
-// Shall we compile in logic for the option switch?
-#define USE_OPTIONSWITCH 0
-
-// What kind of switch are we using for the option-switch?
-// NB: Set to 1 if USE_OPTIONSWITCH is 0 (no optionswitch used)
-#define OPTIONSWITCH_IS_MOMENTARY (1 && USE_OPTIONSWITCH) // Alternative is a SPST switch
-
-#define LED_OUT GP0
-#define FOOTSWITCH_IN GP1
-#define MUTE_OUT GP2
+#define LED_OUT         GP0
+#define FOOTSWITCH_IN   GP1
+#define MUTE_OUT        GP2
 #define OPTIONSWITCH_IN GP3
-#define RELAY_GND GP4 // Shall always be 0.
-#define RELAY_OUT GP5
+#define RELAY_GND       GP4 // Shall always be 0.
+#define RELAY_OUT       GP5
 
 uint8_t relay_state; // Off / On
 uint8_t relay_mode;  // Momentary / Latching

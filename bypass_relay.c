@@ -5,6 +5,8 @@
  *  - Has support for "hold" to change mode from latch to momentary (and back)
  *  - Blinks LED to indicate mode change. 
  *  - Has persistent "On as default"-mode switching (hold at switch @ powerup)
+ *  - Has an optional extra input "USE_OPTIONSWITCH" which can toggle the 
+ *    latch/momentary mode via an SPST to GND.
  */
 
 
@@ -16,7 +18,7 @@
 void init() {
     relay_state = OFF; // Default "Off"
     relay_mode = LATCHING; // Default "latching"
-    mode_change_counter = MODE_CHANGE_PERIODS;
+    mode_change_counter = 0;
 
     ANSEL = 0; // no analog GPIO
     CMCON = 0x07; // comparator off 
@@ -54,14 +56,14 @@ void toggle_relay(uint8_t onoff) {
 
 // Blinks the LED a couple of times
 void blink_LED(int times) {
-    uint8_t state = 0;
+    uint8_t state = OFF;
     toggle_LED(0);
     for (int i = 0; i < times; ++i) { 
         __delay_ms(BLINK_INTERVAL);
-        state ^= 1;
+        state = !state;
         toggle_LED(state);        
     }
-    if (state == ON) {
+    if (state == ON) { // Did we end on "ON"?
         toggle_LED(0); 
     }
 }
@@ -83,109 +85,60 @@ void main(void) {
      
     blink_LED(6); // Say hello!
    
-    if (on_at_startup == TRUE) {
-        toggle_relay(ON);
-         __delay_ms(GRACE_TIME);   
+    if (on_at_startup == TRUE) {        
+        relay_state = ON;
     }
+    else {        
+        relay_state = OFF;
+    }
+    toggle_relay(relay_state);
+    __delay_ms(GRACE_TIME);   
     
     
-    do { 
+    do {              
 #if USE_OPTIONSWITCH
-        // =================================================================
-        // This part is optional and can be removed if no "optional switch" 
-        // is used or hooked up.
-#if OPTIONSWITCH_IS_MOMENTARY
-        if (OPTIONSWITCH_IN == PRESSED) { // Mode switch pressed?
-            __delay_ms(DEBOUNCE_TIME);
-            if (OPTIONSWITCH_IN == PRESSED) { // Still pressed?
+        // The option-switch is a regular SPST to ground               
+        int m = OPTIONSWITCH_IN == PRESSED ? MOMENTARY : LATCHING;
+        if (relay_mode = MOMENTARY && m != relay_mode) {
+            toggle_relay(OFF);
+            __delay_ms(GRACE_TIME);
+        }        
+        relay_mode = m;
+#endif
+        
+        
+        if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed      
+            if (relay_mode == LATCHING && mode_change_counter == 0) {
+                relay_state = !relay_state;            
+                toggle_relay(relay_state);
                 __delay_ms(GRACE_TIME);
-                relay_mode = relay_mode == MOMENTARY ? LATCHING : MOMENTARY;
-                mode_change_counter = relay_mode == MOMENTARY ?
-                        MODE_CHANGE_PERIODS * MODE_CHANGE_RETURN_FACTOR :
-                        MODE_CHANGE_PERIODS;
-                blink_LED(6);
-            }
-        }
-#else           
-        if (OPTIONSWITCH_IN == PRESSED && relay_mode != MOMENTARY) {
-            __delay_ms(GRACE_TIME);
-            relay_mode = MOMENTARY;
-            mode_change_counter =
-                    MODE_CHANGE_PERIODS * MODE_CHANGE_RETURN_FACTOR;
-            blink_LED(6);
-        } else if (OPTIONSWITCH_IN == OPEN && relay_mode != LATCHING) {
-            __delay_ms(GRACE_TIME);
-            relay_mode = LATCHING;
-            mode_change_counter = MODE_CHANGE_PERIODS;
-            blink_LED(6);
-        }
-#endif
-        // =================================================================
-#endif
-
-        if (FOOTSWITCH_IN == PRESSED) { // Switch pressed
-            __delay_ms(DEBOUNCE_TIME); // debounce pause
-
-            // == Latching mode ===========================================
-            if (relay_mode == LATCHING) { 
-                if (FOOTSWITCH_IN == PRESSED) { // Switch STILL pressed?
-                    __delay_ms(GRACE_TIME);
-                    // User has lifted foot. Activate/deactivate.
-                    if (FOOTSWITCH_IN == OPEN) { 
-                        relay_state ^= 1;                        
-                        toggle_relay(relay_state);                                                
-                    } else { // Is the user trying to change mode?
-#if OPTIONSWITCH_IS_MOMENTARY
-                        mode_change_counter -= 1;
-                        if (mode_change_counter == 0) {
-                            relay_mode = MOMENTARY;
-                            mode_change_counter = MODE_CHANGE_PERIODS;
-
-                            relay_state = OFF;                            
-                            toggle_relay(relay_state);                                                        
-                            blink_LED(6);
-                        }
-#endif
-                    }
-                }
-            }
-            // == Momentary mode ============================================                
-            else if (relay_mode == MOMENTARY) { 
-                if (FOOTSWITCH_IN == PRESSED && relay_state != ON) {
-                    relay_state = ON;                    
-                    toggle_relay(relay_state);                                       
-                }
-
-#if OPTIONSWITCH_IS_MOMENTARY
-                if (FOOTSWITCH_IN == PRESSED) { // User is pressing
-                    __delay_ms(GRACE_TIME / 5);
-                    mode_change_counter -= 1;
-                    if (mode_change_counter == 0) {
-                        relay_mode = LATCHING;
-                        mode_change_counter = MODE_CHANGE_PERIODS;
-                        relay_state = OFF;                        
-                        toggle_relay(relay_state);                                                
-                        blink_LED(6);
-                    }
-                } else {
-                    mode_change_counter =
-                            MODE_CHANGE_PERIODS * MODE_CHANGE_RETURN_FACTOR;
-                }
-#endif
             }
             else {
-               // Unknown mode!
+                relay_state = ON;  
+                toggle_relay(relay_state);            
+            }
+            
+#if !USE_OPTIONSWITCH
+            mode_change_counter++;
+            if (mode_change_counter == MODE_CHANGE_PERIODS) {
+                relay_mode = !relay_mode;      
+                blink_LED(6);
+                if (relay_mode == LATCHING) {
+                    relay_state = OFF;
+                    toggle_relay(relay_state);         
+                    __delay_ms(GRACE_TIME);
+                }
+            }
+#endif
+        }
+        else { // Foot switch NOT pressed           
+            mode_change_counter = 0;
+            if (relay_mode == MOMENTARY) {
+                relay_state = OFF;
+                toggle_relay(relay_state);                
             }
         }
-
-
-        if (relay_mode == MOMENTARY) { // Momentary mode            
-            if (FOOTSWITCH_IN == OPEN && relay_state != OFF) {
-                relay_state = OFF;                
-                toggle_relay(relay_state);                                
-            }
-        }
-
+        
     } while(1); // Keep trucking!
     
 }
