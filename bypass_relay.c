@@ -98,12 +98,12 @@ void main(void) {
     do {              
 #if USE_OPTIONSWITCH
         // The option-switch is a regular SPST to ground               
-        int m = OPTIONSWITCH_IN == PRESSED ? MOMENTARY : LATCHING;
-        if (relay_mode = MOMENTARY && m != relay_mode) {
+        uint8_t m = OPTIONSWITCH_IN == PRESSED ? MOMENTARY : LATCHING;
+        if (relay_mode == MOMENTARY && m != relay_mode) {
             toggle_relay(OFF);
             __delay_ms(GRACE_TIME);
         }        
-        relay_mode = m;
+        relay_mode = m;        
 #endif
         
         
