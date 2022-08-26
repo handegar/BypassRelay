@@ -50,11 +50,11 @@
 // Wait time before action
 #define GRACE_TIME 150          
 // How many loops to wait before changing mode
-#define MODE_CHANGE_PERIODS 50   
+#define MODE_CHANGE_PERIODS 15000   
 // Time to mute to avoid "click" when toggling relay
 #define MUTE_TIME 20
 // Pause-time to filter out switch-bounce noise
-#define DEBOUNCE_TIME 15
+#define DEBOUNCE_TIME 150
 // Pause to let the PIC finish its IO changes
 #define PIC_CHANGE_TIME 10
 // Interval for LED blinking
@@ -69,11 +69,6 @@
 
 uint8_t relay_state; // Off / On
 uint8_t relay_mode;  // Momentary / Latching
-
-// To keep track of number of GRACE_TIME periods the user has pressed
-// the footswitch.
-uint8_t mode_change_counter; 
-
 
 #ifdef	__cplusplus
 extern "C" {

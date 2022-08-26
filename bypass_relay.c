@@ -17,8 +17,7 @@
 
 void init() {
     relay_state = OFF; // Default "Off"
-    relay_mode = LATCHING; // Default "latching"
-    mode_change_counter = 0;
+    relay_mode = LATCHING; // Default "latching"    
 
     ANSEL = 0; // no analog GPIO
     CMCON = 0x07; // comparator off 
@@ -69,9 +68,7 @@ void blink_LED(int times) {
 }
 
 
-void main(void) {
-    init();
-    
+void setup(void) {
     unsigned char on_at_startup = eeprom_read(0);
         
     if (FOOTSWITCH_IN == PRESSED) {
@@ -80,7 +77,7 @@ void main(void) {
         // guarantee 100k writes. This is more than enough for a lifetime of 
         // "on at startup" switching :-)
         eeprom_write(0, on_at_startup);
-        __delay_ms(GRACE_TIME);   
+        __delay_ms(GRACE_TIME);           
     }
      
     blink_LED(6); // Say hello!
@@ -91,11 +88,23 @@ void main(void) {
     else {        
         relay_state = OFF;
     }
+    
     toggle_relay(relay_state);
     __delay_ms(GRACE_TIME);   
     
+}
+
+void main(void) {
+    init();
+    setup();
     
-    do {              
+    unsigned long loopcounter = 0;    
+    unsigned long mode_change_counter = 0;
+    uint8_t was_pressed = FALSE;
+    
+    do {             
+        loopcounter++;
+        
 #if USE_OPTIONSWITCH
         // The option-switch is a regular SPST to ground               
         uint8_t m = OPTIONSWITCH_IN == PRESSED ? MOMENTARY : LATCHING;
@@ -105,38 +114,56 @@ void main(void) {
         }        
         relay_mode = m;        
 #endif
-        
+                
+        /*
+        if (loopcounter < pauseconst) {
+            continue;        
+        }*/
         
         if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed      
-            if (relay_mode == LATCHING && mode_change_counter == 0) {
-                relay_state = !relay_state;            
-                toggle_relay(relay_state);
-                __delay_ms(GRACE_TIME);
+            if (relay_mode == LATCHING) {
+                if (mode_change_counter == 0) {
+                    relay_state = !relay_state;            
+                    toggle_relay(relay_state);    
+                    __delay_ms(DEBOUNCE_TIME);                
+                }
             }
-            else {
-                relay_state = ON;  
-                toggle_relay(relay_state);            
+            else {            
+                
+                if (relay_state != ON) {
+                    relay_state = ON;  
+                    toggle_relay(relay_state);                            
+                    __delay_ms(DEBOUNCE_TIME);
+                }
             }
+                                 
             
 #if !USE_OPTIONSWITCH
             mode_change_counter++;
-            if (mode_change_counter == MODE_CHANGE_PERIODS) {
+            
+            // Shall we enter or exit momentary-mode?
+            unsigned long threshold = relay_mode == MOMENTARY ?
+                MODE_CHANGE_PERIODS * 2 : MODE_CHANGE_PERIODS;
+            if (mode_change_counter == threshold && was_pressed) {
                 relay_mode = !relay_mode;      
                 blink_LED(6);
                 if (relay_mode == LATCHING) {
                     relay_state = OFF;
                     toggle_relay(relay_state);         
-                    __delay_ms(GRACE_TIME);
+                    __delay_ms(DEBOUNCE_TIME);                    
                 }
             }
 #endif
+            was_pressed = TRUE;
         }
         else { // Foot switch NOT pressed           
-            mode_change_counter = 0;
-            if (relay_mode == MOMENTARY) {
+            mode_change_counter = 0;            
+            if (relay_mode == MOMENTARY && relay_state == ON) {
                 relay_state = OFF;
-                toggle_relay(relay_state);                
+                toggle_relay(relay_state);                  
             }
+            __delay_ms(DEBOUNCE_TIME);            
+            was_pressed = FALSE;
         }
         
     } while(1); // Keep trucking!
