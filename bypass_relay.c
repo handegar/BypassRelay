@@ -9,6 +9,11 @@
  *    latch/momentary mode via an SPST to GND.
  */
 
+/*
+ * Alternative scheme (From "Flexi-Switching")
+ * - https://www.guitarscanada.com/threads/flexi-switch.226962/
+ */
+
 
 #include <xc.h>
 #include <eeprom_routines.h>
@@ -31,6 +36,9 @@ void init() {
     TRISIO4 = 0; // GND pin for the relay
     TRISIO5 = 0; // Relay
     GPIO = 0; // all the GPIOs are in low state (0V) when starting    
+    
+    // The other pin for the relay. Set to 0 to ensure it is GND
+    RELAY_GND = OFF;   
 }
 
 
@@ -39,48 +47,50 @@ void toggle_LED(uint8_t onoff) {
 }
 
 
-void toggle_relay(uint8_t onoff) {
-    MUTE_OUT = ON; // mute signal       
-    __delay_ms(MUTE_TIME);
+void toggle_mute(uint8_t onoff) {
+    MUTE_OUT = onoff == 1 ? ON : OFF; // mute signal (TLP222A has a t-on of 0.8 milliseconds)      
+    __delay_ms(MUTE_TIME);    
+}
+
+
+void toggle_relay(uint8_t onoff) {    
+    toggle_mute(TRUE);
     toggle_LED(onoff);
-    RELAY_OUT = onoff == 1 ? ON : OFF; // (de)activate the relay                 
-    // The other pin for the relay. Set to 0 to ensure it is GND
-    RELAY_GND = OFF; 
-    __delay_ms(MUTE_TIME);
-    MUTE_OUT = OFF; // unmute signal
-    // Give the PIC time to update it's IO (might not be needed, though...)
-    __delay_ms(PIC_CHANGE_TIME); 
+    RELAY_OUT = onoff == 1 ? ON : OFF; // (de)activate the relay                     
+    __delay_ms(DEBOUNCE_TIME);    
+    toggle_mute(FALSE);
 }
 
 
 // Blinks the LED a couple of times
 void blink_LED(int times) {
+    toggle_mute(TRUE);
     uint8_t state = OFF;
     toggle_LED(0);
-    for (int i = 0; i < times; ++i) { 
-        __delay_ms(BLINK_INTERVAL);
+    for (int i = 0; i < times; ++i) {         
         state = !state;
         toggle_LED(state);        
+        __delay_ms(BLINK_INTERVAL);
     }
     if (state == ON) { // Did we end on "ON"?
         toggle_LED(0); 
     }
+    toggle_mute(FALSE);
 }
 
 
 void setup(void) {
-    unsigned char on_at_startup = eeprom_read(0);
-        
+    unsigned char on_at_startup = eeprom_read(0);        
     if (FOOTSWITCH_IN == PRESSED) {
-        on_at_startup = !on_at_startup;
+        on_at_startup = on_at_startup > 0 ? FALSE : TRUE;
         // Writing to the same address each time. The EEPROM is supposed to 
         // guarantee 100k writes. This is more than enough for a lifetime of 
         // "on at startup" switching :-)
         eeprom_write(0, on_at_startup);
         __delay_ms(GRACE_TIME);           
     }
-     
-    blink_LED(6); // Say hello!
+         
+    blink_LED(4); // Say hello!
    
     if (on_at_startup == TRUE) {        
         relay_state = ON;
@@ -97,14 +107,11 @@ void setup(void) {
 void main(void) {
     init();
     setup();
-    
-    unsigned long loopcounter = 0;    
-    unsigned long mode_change_counter = 0;
-    uint8_t was_pressed = FALSE;
-    
-    do {             
-        loopcounter++;
         
+    unsigned long mode_change_counter = 0;
+    
+    // Main loop
+    do {                              
 #if USE_OPTIONSWITCH
         // The option-switch is a regular SPST to ground               
         uint8_t m = OPTIONSWITCH_IN == PRESSED ? MOMENTARY : LATCHING;
@@ -114,58 +121,49 @@ void main(void) {
         }        
         relay_mode = m;        
 #endif
-                
-        /*
-        if (loopcounter < pauseconst) {
-            continue;        
-        }*/
-        
+                        
         if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed      
             if (relay_mode == LATCHING) {
                 if (mode_change_counter == 0) {
                     relay_state = !relay_state;            
-                    toggle_relay(relay_state);    
-                    __delay_ms(DEBOUNCE_TIME);                
+                    toggle_relay(relay_state);                        
                 }
             }
-            else {            
-                
+            else { // Momentary mode                           
                 if (relay_state != ON) {
                     relay_state = ON;  
-                    toggle_relay(relay_state);                            
-                    __delay_ms(DEBOUNCE_TIME);
+                    toggle_relay(relay_state);                                                
                 }
             }
                                  
-            
-#if !USE_OPTIONSWITCH
+                       
+#if !USE_OPTIONSWITCH 
+            // We are not using an external option-switch. A long-press will
+            // therefore toggle the momentary-mode on/off.
             mode_change_counter++;
             
             // Shall we enter or exit momentary-mode?
             unsigned long threshold = relay_mode == MOMENTARY ?
                 MODE_CHANGE_PERIODS * 2 : MODE_CHANGE_PERIODS;
-            if (mode_change_counter == threshold && was_pressed) {
+            if (mode_change_counter == threshold) {
                 relay_mode = !relay_mode;      
                 blink_LED(6);
-                if (relay_mode == LATCHING) {
+                if (relay_mode == LATCHING) { // Going to latching? Toggle off.
                     relay_state = OFF;
-                    toggle_relay(relay_state);         
-                    __delay_ms(DEBOUNCE_TIME);                    
+                    toggle_relay(relay_state);  
+                    mode_change_counter = 0;                       
                 }
             }
-#endif
-            was_pressed = TRUE;
+#endif            
         }
         else { // Foot switch NOT pressed           
             mode_change_counter = 0;            
             if (relay_mode == MOMENTARY && relay_state == ON) {
                 relay_state = OFF;
                 toggle_relay(relay_state);                  
-            }
-            __delay_ms(DEBOUNCE_TIME);            
-            was_pressed = FALSE;
+            }            
         }
         
-    } while(1); // Keep trucking!
+    } while(1); // Keep trucking (forever)!
     
 }
