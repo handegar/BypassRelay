@@ -67,6 +67,9 @@
 #define RELAY_GND       GP4 // Shall always be 0.
 #define RELAY_OUT       GP5
 
+// EEPROM address for status flag
+#define ON_AT_STARTUP_ADDR 0 
+
 uint8_t relay_state; // Off / On
 uint8_t relay_mode;  // Momentary / Latching
 

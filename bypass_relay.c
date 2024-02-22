@@ -16,7 +16,7 @@
 
 
 #include <xc.h>
-#include <eeprom_routines.h>
+#include <htc.h> // Eeprom read/write
 
 #include "bypass_relay.h"
 
@@ -65,32 +65,30 @@ void toggle_relay(uint8_t onoff) {
 // Blinks the LED a couple of times
 void blink_LED(int times) {
     toggle_mute(TRUE);
-    uint8_t state = OFF;
-    toggle_LED(0);
-    for (int i = 0; i < times; ++i) {         
-        state = !state;
-        toggle_LED(state);        
+    
+    for (int i = 0; i < times*2; ++i) {                 
+        toggle_LED(ON);        
+        __delay_ms(BLINK_INTERVAL);
+        toggle_LED(OFF);        
         __delay_ms(BLINK_INTERVAL);
     }
-    if (state == ON) { // Did we end on "ON"?
-        toggle_LED(0); 
-    }
+    
     toggle_mute(FALSE);
 }
 
 
 void setup(void) {
-    unsigned char on_at_startup = eeprom_read(0);        
+    unsigned char on_at_startup = EEPROM_READ(ON_AT_STARTUP_ADDR);
     if (FOOTSWITCH_IN == PRESSED) {
         on_at_startup = on_at_startup > 0 ? FALSE : TRUE;
         // Writing to the same address each time. The EEPROM is supposed to 
         // guarantee 100k writes. This is more than enough for a lifetime of 
         // "on at startup" switching :-)
-        eeprom_write(0, on_at_startup);
+        EEPROM_WRITE(ON_AT_STARTUP_ADDR, on_at_startup);
         __delay_ms(GRACE_TIME);           
     }
          
-    blink_LED(4); // Say hello!
+    blink_LED(2); // Say hello!
    
     if (on_at_startup == TRUE) {        
         relay_state = ON;
@@ -147,7 +145,7 @@ void main(void) {
                 MODE_CHANGE_PERIODS * 2 : MODE_CHANGE_PERIODS;
             if (mode_change_counter == threshold) {
                 relay_mode = !relay_mode;      
-                blink_LED(6);
+                blink_LED(4);
                 if (relay_mode == LATCHING) { // Going to latching? Toggle off.
                     relay_state = OFF;
                     toggle_relay(relay_state);  
