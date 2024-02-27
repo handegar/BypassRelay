@@ -32,13 +32,27 @@ void init() {
     TRISIO0 = 0; // LED
     TRISIO1 = 1; // Foot-switch
     TRISIO2 = 0; // TLP222G/A muter
-    TRISIO3 = 1; // Extra button/switch (optional, not used at the moment)
+    
+#if !USE_OPTIONSWITCH
+    TRISIO3 = 0; // Set as output as it is not used
+#else
+    TRISIO3 = 1;     
+#endif
+    
     TRISIO4 = 0; // GND pin for the relay
     TRISIO5 = 0; // Relay
     GPIO = 0; // all the GPIOs are in low state (0V) when starting    
     
     // The other pin for the relay. Set to 0 to ensure it is GND
     RELAY_GND = OFF;   
+    
+#if 1
+    // Enable weak (internal) pullup for the footswitch pin.
+    // NOTE: There is no WPU3 for the optional switch so here we'll
+    // have to rely on an external pullup resistor.
+    OPTION_REG = 0x00;
+    WPU = 0b00000010;
+#endif
 }
 
 
@@ -107,6 +121,7 @@ void main(void) {
     setup();
         
     unsigned long mode_change_counter = 0;
+    uint8_t was_released = TRUE;    
     
     // Main loop
     do {                              
@@ -120,17 +135,20 @@ void main(void) {
         relay_mode = m;        
 #endif
                         
-        if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed      
+        if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed     
+            __delay_ms(DEBOUNCE_TIME); 
             if (relay_mode == LATCHING) {
-                if (mode_change_counter == 0) {
-                    relay_state = !relay_state;            
-                    toggle_relay(relay_state);                        
+                if (mode_change_counter == 0) {                    
+                    relay_state = !relay_state;                                
+                    toggle_relay(relay_state);
+                    __delay_ms(GRACE_TIME*4);                                                                                   
                 }
             }
             else { // Momentary mode                           
                 if (relay_state != ON) {
                     relay_state = ON;  
-                    toggle_relay(relay_state);                                                
+                    toggle_relay(relay_state);
+                    __delay_ms(GRACE_TIME);        
                 }
             }
                                  
@@ -145,7 +163,7 @@ void main(void) {
                 MODE_CHANGE_PERIODS * 2 : MODE_CHANGE_PERIODS;
             if (mode_change_counter == threshold) {
                 relay_mode = !relay_mode;      
-                blink_LED(4);
+                blink_LED(3);
                 if (relay_mode == LATCHING) { // Going to latching? Toggle off.
                     relay_state = OFF;
                     toggle_relay(relay_state);  
@@ -159,7 +177,7 @@ void main(void) {
             if (relay_mode == MOMENTARY && relay_state == ON) {
                 relay_state = OFF;
                 toggle_relay(relay_state);                  
-            }            
+            }                            
         }
         
     } while(1); // Keep trucking (forever)!

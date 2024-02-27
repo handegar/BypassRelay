@@ -19,7 +19,7 @@
 #pragma config CP = OFF         // Code Protection bit (Program Memory code protection is disabled)
 #pragma config CPD = OFF        // Data Code Protection bit (Data memory code protection is disabled)
 
-#define _XTAL_FREQ 4000000      // Run at 4 Mhz
+#define _XTAL_FREQ 1000000      // Run at 1 Mhz
 
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
@@ -48,17 +48,15 @@
 #define TRUE 1
 
 // Wait time before action
-#define GRACE_TIME 150          
+#define GRACE_TIME 300          
 // How many loops to wait before changing mode
 #define MODE_CHANGE_PERIODS 15000   
 // Time to mute to avoid "click" when toggling relay
-#define MUTE_TIME 20
+#define MUTE_TIME 10
 // Pause-time to filter out switch-bounce noise
-#define DEBOUNCE_TIME 150
-// Pause to let the PIC finish its IO changes
-#define PIC_CHANGE_TIME 10
+#define DEBOUNCE_TIME 30
 // Interval for LED blinking
-#define BLINK_INTERVAL 100
+#define BLINK_INTERVAL 150
 
 #define LED_OUT         GP0
 #define FOOTSWITCH_IN   GP1
