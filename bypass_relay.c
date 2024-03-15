@@ -9,6 +9,18 @@
  *    latch/momentary mode via an SPST to GND.
  */
 
+/* 
+ * MCU Pin usage:
+ * 
+ *            +---_---+
+ *       5V --| 1   8 |-- GND
+ *   Relay+ --| 2   7 |-- LED (via clr)
+ *   Relay- --| 3   6 |-- Foot switch (to ground)
+ *   Opt sw --| 4   5 |-- Opto-coupler via 1k5 ohm. 
+ *            +-------+ 
+ * 
+ */
+
 /*
  * Alternative scheme (From "Flexi-Switching")
  * - https://www.guitarscanada.com/threads/flexi-switch.226962/
