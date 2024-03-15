@@ -4,7 +4,7 @@
  *    https://www.coda-effects.com/2017/02/relay-bypass-final-code.html
  *  - Has support for "hold" to change mode from latch to momentary (and back)
  *  - Blinks LED to indicate mode change. 
- *  - Has persistent "On as default"-mode switching (hold at switch @ powerup)
+ *  - Has persistent "On as default"-mode switching (hold at switch @ power-up)
  *  - Has an optional extra input "USE_OPTIONSWITCH" which can toggle the 
  *    latch/momentary mode via an SPST to GND.
  */
@@ -47,12 +47,14 @@ void init() {
     RELAY_GND = OFF;   
     
 #if 1
-    // Enable weak (internal) pullup for the footswitch pin.
+    // Enable weak (internal) pull-up for the foot-switch pin.
     // NOTE: There is no WPU3 for the optional switch so here we'll
-    // have to rely on an external pullup resistor.
+    // have to rely on an external pull-up resistor.
     OPTION_REG = 0x00;
     WPU = 0b00000010;
 #endif
+    
+    __delay_ms(GRACE_TIME);        
 }
 
 
@@ -62,17 +64,24 @@ void toggle_LED(uint8_t onoff) {
 
 
 void toggle_mute(uint8_t onoff) {
+#if MUTE_BEFORE_SWITCH
     MUTE_OUT = onoff == 1 ? ON : OFF; // mute signal (TLP222A has a t-on of 0.8 milliseconds)      
-    __delay_ms(MUTE_TIME);    
+    __delay_ms(MUTE_TIME);
+#endif    
 }
 
 
-void toggle_relay(uint8_t onoff) {    
+void toggle_relay(uint8_t onoff) {         
+#if MUTE_MODE_TEST    
+    toggle_mute(onoff == 1 ? TRUE : FALSE);    
+    toggle_LED(onoff);    
+#else   
     toggle_mute(TRUE);
     toggle_LED(onoff);
     RELAY_OUT = onoff == 1 ? ON : OFF; // (de)activate the relay                     
-    __delay_ms(DEBOUNCE_TIME);    
+    __delay_ms(RELAY_ACTION_TIME);    
     toggle_mute(FALSE);
+#endif
 }
 
 
@@ -121,7 +130,6 @@ void main(void) {
     setup();
         
     unsigned long mode_change_counter = 0;
-    uint8_t was_released = TRUE;    
     
     // Main loop
     do {                              
@@ -136,12 +144,11 @@ void main(void) {
 #endif
                         
         if (FOOTSWITCH_IN == PRESSED) { // Foot switch pressed     
-            __delay_ms(DEBOUNCE_TIME); 
             if (relay_mode == LATCHING) {
                 if (mode_change_counter == 0) {                    
                     relay_state = !relay_state;                                
                     toggle_relay(relay_state);
-                    __delay_ms(GRACE_TIME*4);                                                                                   
+                    __delay_ms(GRACE_TIME*2); // Wait a while before we register a new switch state.                                                                                  
                 }
             }
             else { // Momentary mode                           
@@ -151,8 +158,7 @@ void main(void) {
                     __delay_ms(GRACE_TIME);        
                 }
             }
-                                 
-                       
+                                                        
 #if !USE_OPTIONSWITCH 
             // We are not using an external option-switch. A long-press will
             // therefore toggle the momentary-mode on/off.
@@ -161,7 +167,7 @@ void main(void) {
             // Shall we enter or exit momentary-mode?
             unsigned long threshold = relay_mode == MOMENTARY ?
                 MODE_CHANGE_PERIODS * 2 : MODE_CHANGE_PERIODS;
-            if (mode_change_counter == threshold) {
+            if (mode_change_counter >= threshold) {
                 relay_mode = !relay_mode;      
                 blink_LED(3);
                 if (relay_mode == LATCHING) { // Going to latching? Toggle off.

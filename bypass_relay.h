@@ -19,10 +19,14 @@
 #pragma config CP = OFF         // Code Protection bit (Program Memory code protection is disabled)
 #pragma config CPD = OFF        // Data Code Protection bit (Data memory code protection is disabled)
 
-#define _XTAL_FREQ 1000000      // Run at 1 Mhz
-
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
+
+
+#define KHz *1000UL
+#define MHz *1000000UL
+#define _XTAL_FREQ (8 MHz)
+
 
 #include <stdint.h>
 #include <xc.h>
@@ -34,6 +38,14 @@
 
 // Shall we compile in logic for the option switch as mode-toggle?
 #define USE_OPTIONSWITCH 0
+
+// The foot-switch will only be used to mute out-signal. Used for testing the
+// opto-coupler to see if OUT is connected to GND (~32 Ohm resistance).
+#define MUTE_MODE_TEST 0
+
+// Mute the signal using the opto-coupler before triggering the relay
+// Can be disabled if the optocoupler itself causes crackling/pops
+#define MUTE_BEFORE_SWITCH 1
 
 // =============================================================================
 
@@ -48,15 +60,15 @@
 #define TRUE 1
 
 // Wait time before action
-#define GRACE_TIME 300          
+#define GRACE_TIME 30          
 // How many loops to wait before changing mode
 #define MODE_CHANGE_PERIODS 15000   
 // Time to mute to avoid "click" when toggling relay
-#define MUTE_TIME 10
-// Pause-time to filter out switch-bounce noise
-#define DEBOUNCE_TIME 30
+#define MUTE_TIME 35 // less than 15 ms seems to cause a click
+// Pause to let the relay do its movement
+#define RELAY_ACTION_TIME 30 // The Omron G6K-2F datasheet says 3ms
 // Interval for LED blinking
-#define BLINK_INTERVAL 150
+#define BLINK_INTERVAL 50
 
 #define LED_OUT         GP0
 #define FOOTSWITCH_IN   GP1
